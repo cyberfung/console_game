@@ -3,17 +3,28 @@
 #include <math.h>
 #include <time.h>
 
-#include <conio.h>
-
 #include <iostream>
 
+#ifndef TARGETOSLINUX
+#include <conio.h>
 #include <windows.h>
+#endif
 
 using namespace std;
 
+#ifndef TARGETOSLINUX
 void cls( HANDLE hConsole );
 
 HANDLE hStdout;
+#endif
+
+// Linux specific overrides
+#ifdef TARGETOSLINUX
+#define getch() getc(stdin)
+#define setCursorPosition(a, b) 0
+#define enterRawMode() system("stty raw")
+#define enterNormalMode() system("stty cooked")
+#endif
 
 class Map {
 	public:
@@ -162,10 +173,14 @@ int Hero::move (Map &map) {
 
 
 void screenClear () {
+#ifndef TARGETOSLINUX
 	cls(hStdout);
-
+#else
+  system("clear");
+#endif
 }
 
+#ifndef TARGETOSLINUX
 void cls( HANDLE hConsole ) {
 	COORD coordScreen = { 0, 0 };    // home for the cursor
 	DWORD cCharsWritten;
@@ -212,21 +227,26 @@ void cls( HANDLE hConsole ) {
 
 	SetConsoleCursorPosition( hConsole, coordScreen );
 }
+#endif
 
+#ifndef TARGETOSLINUX
 void setCursorPosition(int x, int y) {
     static const HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     std::cout.flush();
     COORD coord = { (SHORT)x, (SHORT)y };
     SetConsoleCursorPosition(hOut, coord);
 }
+#endif
 
 int main (int argc, char *argv[]) {
 	char move;
 	char heroSymbol = '*';
 	int isOver = 0;
 
+#ifndef TARGETOSLINUX
 	//winPart
 	hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+#endif
 
 
 	srand(time(NULL));
@@ -247,7 +267,10 @@ int main (int argc, char *argv[]) {
 	while (1) {
 		if (isOver != 1) {
 			setCursorPosition(0, 4 + map.h);
+
+      enterRawMode();
 			move = getch();
+      enterNormalMode();
 
 			if (move == 'a') {
 				if (hero.x > 0) {
@@ -292,7 +315,15 @@ int main (int argc, char *argv[]) {
 			setCursorPosition(0, 1);
 			printf("Money = %d\n\n", hero.money);
 			setCursorPosition(1 + hero.x, 3 + hero.y);
+#ifndef TARGETOSLINUX
 			cout << '*';
+#endif
+
+// redraw every frame (use ncurses for cell control)
+#ifdef TARGETOSLINUX
+      system("clear");
+			map.draw();
+#endif
 
 			if (map.money == 0) {
 				map.init(30, 20);
@@ -314,7 +345,10 @@ int main (int argc, char *argv[]) {
 			setCursorPosition(0, 0);
 			printf("You Lose. Press r for restart or q for quit\n");
 
+      enterRawMode();
 			move = getch();
+      enterNormalMode();
+
 			if (move == 'r') {
 				map.init(30, 20);
 				do {
